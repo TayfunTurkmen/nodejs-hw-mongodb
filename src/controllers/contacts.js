@@ -6,35 +6,19 @@ import {
 } from '../services/contacts.js';
 import createHttpError from 'http-errors';
 
-export const getContactsController = async (req, res, next) => {
+export const getContactsController = async (req, res) => {
   try {
-    const {
-      page = 1,
-      perPage = 10,
-      sortBy = 'name',
-      sortOrder = 'asc',
-      type,
-      isFavorite,
-    } = req.query;
-
-    const data = await getAllContacts({
-      page: parseInt(page),
-      perPage: parseInt(perPage),
-      sortBy,
-      sortOrder,
-      type,
-      isFavorite,
-    });
+    const contacts = await getAllContacts();
     res.status(200).json({
       status: 200,
       message: 'Successfully found contacts',
-      data,
+      data: contacts,
     });
   } catch (error) {
-    next(error);
+    console.error('Error creating contact:', error);
+    res.status(500).json({ status: 500, message: 'Internal Server Error' });
   }
 };
-
 export const getContactByIdController = async (req, res, next) => {
   const { contactId } = req.params;
 
