@@ -2,24 +2,23 @@ import mongoose from 'mongoose';
 import { env } from '../utils/env.js';
 
 const initMongoConnection = async () => {
-  const MONGODB_USER = env('MONGODB_USER');
-  const MONGODB_PASSWORD = env('MONGODB_PASSWORD');
-  const MONGODB_URL = env('MONGODB_URL');
-  const MONGODB_DB = env('MONGODB_DB');
-  const mongoUri = `mongodb+srv://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_URL}/${MONGODB_DB}?retryWrites=true&w=majority`;
+  const MONGO_USER = env('MONGO_USER');
+  const MONGO_PASSWORD = env('MONGO_PASSWORD');
+  const MONGO_URL = env('MONGO_URL');
+  const MONGO_DB = env('MONGO_DB');
+  const mongoUri = `mongodb+srv://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_URL}/${MONGO_DB}?retryWrites=true&w=majority`;
 
-  // const options = {
-  //   serverSelectionTimeoutMS: 5000,
-  //   socketTimeoutMS: 45000,
-  // };
-
+  const options = {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  };
   try {
-    // await mongoose.connect(mongoUri, options);
-    await mongoose.connect(mongoUri);
-    console.log('Mongo connection successfully established!');
+    await mongoose.connect(mongoUri, options);
+    console.log('\n✅ | Mongo connection successfully established!');
   } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    process.exit(1);
+    console.error('Error connecting to MongoDB:', error);
+    throw error;
   }
 };
+
 export default initMongoConnection;
