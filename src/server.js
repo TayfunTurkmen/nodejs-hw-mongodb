@@ -1,62 +1,35 @@
-import express from 'express';
-import { env } from './utils/env.js';
-import cors from 'cors';
+require('dotenv').config();
+const express = require('express');
+const contactsRouter = require('./routers/contacts');
+const notFoundHandler = require('./middlewares/notFoundHandler');
+const errorHandler = require('./middlewares/errorHandler');
 
-import {
-  createContactController,
-  deleteContactController,
-  getAllContactsController,
-  getContactByIdController,
-  updateContactController,
-} from './controllers/contacts.js';
-
-import { errorHandler } from './middleware/errorHandler.js';
-import { notFoundHandler } from './middleware/notFoundHandler.js';
-
-import {
-  createContactSchema,
-  patchContactSchema,
-} from './validation/contact.js';
-import { validateBody } from './middleware/validateBody.js';
-import { isValidId } from './middleware/isValidId.js';
-
-const PORT = env('PORT') || 3000;
-
-export const setupServer = async () => {
+function setupServer() {
   const app = express();
 
   app.use(express.json());
-  app.use(cors());
 
+  // Routers
+  app.use('/api/contacts', contactsRouter);
+
+  // Alternatif route (isteğe bağlı)
+  app.use('/contacts', contactsRouter);
+
+  // Health check
   app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to the Contacts API' });
+    res.json({ message: 'API is running ' });
   });
 
-  app.get('/contacts', getAllContactsController);
+  // 404 handler
+  app.use(notFoundHandler);
 
-  app.get('/contacts/:contactId', isValidId, getContactByIdController);
-
-  app.post(
-    '/contacts',
-    validateBody(createContactSchema),
-    createContactController
-  );
-
-  app.delete('/contacts/:contactId', isValidId, deleteContactController);
-
-  app.patch(
-    '/contacts/:contactId',
-    isValidId,
-    validateBody(patchContactSchema),
-    updateContactController
-  );
-
-  // Error Handling Middleware
-  app.use('*', notFoundHandler);
-
+  // Global error handler
   app.use(errorHandler);
 
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`✅ | Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
   });
-};
+}
+
+module.exports = setupServer;

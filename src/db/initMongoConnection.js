@@ -1,24 +1,26 @@
-import mongoose from 'mongoose';
-import { env } from '../utils/env.js';
+const mongoose = require('mongoose');
 
-const initMongoConnection = async () => {
-  const MONGO_USER = env('MONGO_USER');
-  const MONGO_PASSWORD = env('MONGO_PASSWORD');
-  const MONGO_URL = env('MONGO_URL');
-  const MONGO_DB = env('MONGO_DB');
-  const mongoUri = `mongodb+srv://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_URL}/${MONGO_DB}?retryWrites=true&w=majority`;
+async function initMongoConnection() {
+  const { MONGODB_USER, MONGODB_PASSWORD, MONGODB_URL, MONGODB_DB } =
+    process.env;
 
-  const options = {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  };
-  try {
-    await mongoose.connect(mongoUri, options);
-    console.log('\n✅ | Mongo connection successfully established!');
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    throw error;
+  if (!MONGODB_URL || !MONGODB_DB) {
+    throw new Error('Missing MONGODB_URL or MONGODB_DB in env');
   }
-};
 
-export default initMongoConnection;
+  const auth =
+    MONGODB_USER && MONGODB_PASSWORD
+      ? `${encodeURIComponent(MONGODB_USER)}:${encodeURIComponent(MONGODB_PASSWORD)}@`
+      : '';
+
+  const uri = `mongodb+srv://${auth}${MONGODB_URL}/${MONGODB_DB}?retryWrites=true&w=majority`;
+
+  await mongoose.connect(uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+
+  console.log('Mongo connection successfully established!');
+}
+
+module.exports = initMongoConnection;

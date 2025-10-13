@@ -1,13 +1,15 @@
-import { setupServer } from './server.js';
-import initMongoConnection from './db/initMongoConnection.js';
-const startServer = async () => {
+require('dotenv').config();
+const initMongoConnection = require('./db/initMongoConnection');
+const setupServer = require('./server');
+
+async function start() {
   try {
     await initMongoConnection();
-    setupServer();
-  } catch (error) {
-    console.error('Error during server startup:', error);
-    process.exit(1); // Exit the process with an error code
+    setupServer(); // Express server başlatılıyor
+  } catch (err) {
+    console.error('Failed to start app', err);
+    process.exit(1);
   }
-};
+}
 
-startServer();
+start();

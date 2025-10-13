@@ -1,104 +1,53 @@
-import { isValidObjectId } from 'mongoose';
-import ContactCollection from '../db/models/contacts.js';
+const Contact = require('../db/models/contact');
 
-import { SortOrder } from '../constants/index.js';
-import { calculatePaginationData } from '../utils/calculatePaginationData.js';
-export const getAllContacts = async (
-  page = 1,
-  perPage = 10,
-  sortBy = '_id',
-  sortOrder = SortOrder.ASC,
-
-  filter = {}
-) => {
-  const limit = perPage;
+// 🔹 GET all contacts with pagination, sorting, and filtering
+const getAllContacts = async ({ page, perPage, sortBy, sortOrder, query }) => {
   const skip = (page - 1) * perPage;
+  const sortDirection = sortOrder === 'desc' ? -1 : 1;
 
-  const contactsQuery = ContactCollection.find();
+  const totalItems = await Contact.countDocuments(query);
+  const totalPages = Math.ceil(totalItems / perPage);
 
-  if (filter.isFavourite !== undefined) {
-    contactsQuery.where('isFavourite').equals(filter.isFavourite);
-  }
-  if (filter.type !== undefined) {
-    contactsQuery.where('contactType').equals(filter.type);
-  }
+  const contacts = await Contact.find(query)
+    .sort({ [sortBy]: sortDirection })
+    .skip(skip)
+    .limit(Number(perPage));
 
-  const [count, data] = await Promise.all([
-    ContactCollection.find().merge(contactsQuery).countDocuments(),
-    ContactCollection.find()
-      .merge(contactsQuery)
-      .skip(skip)
-      .limit(limit)
-      .sort({
-        [sortBy]: sortOrder,
-      })
-
-      .exec(),
-  ]);
-
-  const paginationData = calculatePaginationData(count, page, perPage);
-
-  const result = {
-    data: data,
-    ...paginationData,
+  return {
+    data: contacts,
+    page: Number(page),
+    perPage: Number(perPage),
+    totalItems,
+    totalPages,
+    hasPreviousPage: page > 1,
+    hasNextPage: page < totalPages,
   };
-  return result;
 };
 
-export const getContactById = async (id) => {
-  if (!isValidObjectId(id)) return null;
-
-  const contact = await ContactCollection.findById(id);
-  console.log('Contact found:', contact);
-  if (!contact) {
-    console.error(`Contact with id ${id} not found`);
-    return null; // Eğer contact bulunamazsa null döner
-  }
-  console.log('Contact retrieved successfully:', contact);
-  return contact; // null ise null döner, varsa contact döner
+// 🔹 GET contact by ID
+const getContactById = async (contactId) => {
+  return await Contact.findById(contactId);
 };
 
-export const createContact = async (payload) => {
-  try {
-    const result = await ContactCollection.create(payload);
-    if (!result) {
-      console.error('Contact creation failed:', result);
-      return null; // Oluşturma başarısızsa null döner
-    }
-    return result; // Başarılı ise oluşturulan contact döner
-  } catch (error) {
-    console.error('Error in createContact:', error);
-    return null; // Hata durumunda null döndür
-  }
+// 🔹 POST new contact
+const addContact = async (data) => {
+  return await Contact.create(data);
 };
 
-export const deleteContact = async (id) => {
-  if (!isValidObjectId(id)) return null;
-
-  const result = await ContactCollection.findByIdAndDelete(id, {
-    sort: true,
-  });
-  if (!result) {
-    console.error(`Contact with id ${id} not found for deletion`);
-    return null; // Eğer contact bulunamazsa null döner
-  }
-  console.log('Contact deleted successfully:', result);
-  return true; // Başarılı ise silinen true döner
+// 🔹 PATCH update contact
+const patchContact = async (contactId, data) => {
+  return await Contact.findByIdAndUpdate(contactId, data, { new: true });
 };
 
-export const updateContact = async (id, payload) => {
-  if (!isValidObjectId(id)) return null;
+// 🔹 DELETE contact
+const removeContact = async (contactId) => {
+  return await Contact.findByIdAndDelete(contactId);
+};
 
-  const result = await ContactCollection.findByIdAndUpdate(
-    {
-      _id: id,
-    },
-    payload,
-    { runValidators: false }
-  );
-
-  if (!result) {
-    return null;
-  }
-  return result;
+module.exports = {
+  getAllContacts,
+  getContactById,
+  addContact,
+  patchContact,
+  removeContact,
 };
