@@ -1,15 +1,18 @@
-require('dotenv').config();
-const initMongoConnection = require('./db/initMongoConnection');
-const setupServer = require('./server');
+import dotenv from "dotenv";
+dotenv.config();
 
-async function start() {
-  try {
-    await initMongoConnection();
-    setupServer(); // Express server başlatılıyor
-  } catch (err) {
-    console.error('Failed to start app', err);
-    process.exit(1);
-  }
+import { setupServer } from "./server.js";
+import initMongoConnection from "./db/initMongoConnection.js";
+
+async function main() {
+  await initMongoConnection();
+
+  const app = setupServer();
+  const PORT = process.env.PORT || 3000;
+
+  app.listen(PORT, () => {
+    console.log(`Server running. Use our API on port: ${PORT}`);
+  });
 }
 
-start();
+main();

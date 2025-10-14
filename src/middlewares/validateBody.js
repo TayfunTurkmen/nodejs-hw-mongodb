@@ -1,14 +1,12 @@
-const validateBody = (schema) => {
+export const validateBody = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.body);
     if (error) {
       return res.status(400).json({
         status: 400,
-        message: error.message,
+        message: error.details.map((err) => err.message).join(", "),
       });
     }
     next();
   };
 };
-
-module.exports = validateBody;

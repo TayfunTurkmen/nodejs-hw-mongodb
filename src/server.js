@@ -1,35 +1,39 @@
-require('dotenv').config();
-const express = require('express');
-const contactsRouter = require('./routers/contacts');
-const notFoundHandler = require('./middlewares/notFoundHandler');
-const errorHandler = require('./middlewares/errorHandler');
+import express from "express";
+import cors from "cors";
+import pino from "pino-http";
+import dotenv from "dotenv";
+import contactsRouter from "./routes/contactsRouter.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
+import { notFoundHandler } from "./middlewares/notFoundHandler.js";
 
-function setupServer() {
+dotenv.config();
+
+export const setupServer = () => {
   const app = express();
 
+  app.use(
+    cors({
+      origin: [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://nodejs-hw-mongodb-qk93.onrender.com",
+      ],
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    })
+  );
+
   app.use(express.json());
+  app.use(pino());
 
-  // Routers
-  app.use('/api/contacts', contactsRouter);
-
-  // Alternatif route (isteğe bağlı)
-  app.use('/contacts', contactsRouter);
-
-  // Health check
-  app.get('/', (req, res) => {
-    res.json({ message: 'API is running ' });
+  app.get("/health", (req, res) => {
+    res.json({ status: "OK" });
   });
 
-  // 404 handler
-  app.use(notFoundHandler);
+  app.use("/contacts", contactsRouter);
 
-  // Global error handler
+  app.use(notFoundHandler);
   app.use(errorHandler);
 
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-}
-
-module.exports = setupServer;
+  return app; 
+};
