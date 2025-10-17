@@ -16,7 +16,7 @@ export const setupServer = () => {
       origin: [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://nodejs-hw-mongodb-qk93.onrender.com",
+        "https://hw4-validation-5sw7.onrender.com",
       ],
       credentials: true,
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
