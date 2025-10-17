@@ -1,25 +1,18 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
 
-async function initMongoConnection() {
+export const initMongoConnection = async () => {
   try {
-    const user = process.env.MONGODB_USER;
-    const password = process.env.MONGODB_PASSWORD;
-    const url = process.env.MONGODB_URL;
-    const db = process.env.MONGODB_DB;
+    const { MONGODB_USER, MONGODB_PASSWORD, MONGODB_URL, MONGODB_DB } =
+      process.env;
 
-    if (!user || !password || !url || !db) {
-      throw new Error("MongoDB environment variables are not set!");
-    }
+    const uri = `mongodb+srv://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_URL}/${MONGODB_DB}?retryWrites=true&w=majority`;
 
-    const connectionString = `mongodb+srv://${user}:${password}@${url}/${db}?retryWrites=true&w=majority`;
-
-    await mongoose.connect(connectionString);
-
-    console.log("Mongo connection successfully established!");
-  } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
+    await mongoose.connect(uri);
+    console.log('Mongo connection successfully established!');
+  } catch (err) {
+    console.error('Mongo connection error:', err);
     process.exit(1);
   }
-}
-
-export default initMongoConnection;
+};

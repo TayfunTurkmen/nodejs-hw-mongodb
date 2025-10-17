@@ -1,23 +1,26 @@
-const express = require('express');
-const router = express.Router();
+import { Router } from 'express';
+import {
+  getContactsController,
+  getContactByIdController,
+  createContactController,
+  updateContactController,
+  deleteContactController,
+} from '../controllers/contacts.js';
+import { ctrlWrapper } from '../utils/ctrlWrapper.js';
+import { validateBody } from '../middlewares/validateBody.js';
+import { isValidId } from '../middlewares/isValidId.js';
+import { authenticate } from '../middlewares/authenticate.js';
+import { createContactSchema, updateContactSchema } from '../validation/contactSchemas.js';
 
-const ctrl = require('../controllers/contacts');
-const validateBody = require('../middlewares/validateBody');
-const isValidId = require('../middlewares/isValidId');
-const {
-  contactAddSchema,
-  contactUpdateSchema,
-} = require('../validation/contactValidation');
+const router = Router();
 
-router.get('/', ctrl.getContacts);
-router.get('/:contactId', isValidId, ctrl.getContactById);
-router.post('/', validateBody(contactAddSchema), ctrl.addContact);
-router.patch(
-  '/:contactId',
-  isValidId,
-  validateBody(contactUpdateSchema),
-  ctrl.patchContact
-);
-router.delete('/:contactId', isValidId, ctrl.removeContact);
 
-module.exports = router;
+router.use(authenticate);
+
+router.get('/', ctrlWrapper(getContactsController));
+router.get('/:contactId', isValidId, ctrlWrapper(getContactByIdController));
+router.post('/', validateBody(createContactSchema), ctrlWrapper(createContactController));
+router.patch('/:contactId', isValidId, validateBody(updateContactSchema), ctrlWrapper(updateContactController));
+router.delete('/:contactId', isValidId, ctrlWrapper(deleteContactController));
+
+export default router;

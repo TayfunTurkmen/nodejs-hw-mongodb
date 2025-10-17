@@ -1,32 +1,35 @@
 {
   "name": "nodejs-hw-mongodb",
   "version": "1.0.0",
-  "type": "module",
   "main": "index.js",
+  "type": "module",
   "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint ."
   },
   "keywords": [],
-  "author": "",
+  "author": "Yusuf Şengöz",
   "license": "ISC",
   "description": "",
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "eslint": "^9.36.0",
-    "globals": "^16.4.0",
-    "nodemon": "^3.1.10"
-  },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "http-errors": "^2.0.0",
     "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.20.0",
-    "mongoose": "^8.18.3",
-    "pino": "^9.12.0",
+    "mongoose": "^8.19.1",
+    "pino": "^9.11.0",
     "pino-http": "^10.5.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.36.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2"
   }
 }

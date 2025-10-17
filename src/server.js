@@ -1,39 +1,26 @@
-import express from "express";
-import cors from "cors";
-import pino from "pino-http";
-import dotenv from "dotenv";
-import contactsRouter from "./routes/contactsRouter.js";
-import { errorHandler } from "./middlewares/errorHandler.js";
-import { notFoundHandler } from "./middlewares/notFoundHandler.js";
-
-dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import pino from 'pino-http';
+import cookieParser from 'cookie-parser'; // ⬅️ ekle
+import contactsRouter from './routers/contacts.js';
+import { notFoundHandler } from './middlewares/notFoundHandler.js';
+import { errorHandler } from './middlewares/errorHandler.js';
+import authRouter from './routers/auth.js';
 
 export const setupServer = () => {
   const app = express();
 
-  app.use(
-    cors({
-      origin: [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://nodejs-hw-mongodb-qk93.onrender.com",
-      ],
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    })
-  );
-
-  app.use(express.json());
+  app.use(cors());
   app.use(pino());
+  app.use(express.json()); // POST/PATCH body için
+  app.use(cookieParser()); // ⬅️ cookie’leri okuyabilmek için ekle
 
-  app.get("/health", (req, res) => {
-    res.json({ status: "OK" });
-  });
-
-  app.use("/contacts", contactsRouter);
+  app.use('/auth', authRouter); 
+  app.use('/contacts', contactsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  return app; 
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 };
