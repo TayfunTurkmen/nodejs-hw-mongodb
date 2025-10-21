@@ -1,34 +1,43 @@
-import createError from 'http-errors';
-import jwt from 'jsonwebtoken';
-import { Session } from '../db/models/Session.js';
-import { User } from '../db/models/User.js';
+import createHttpError from "http-errors";
+import { SessionsCollection } from "../db/model/Session.js";
+import UsersCollection from "../db/model/user.js";
 
-export const authenticate = async (req, res, next) => {
-  const header = req.headers.authorization || '';
-  const [type, token] = header.split(' ');
-  if (type !== 'Bearer' || !token) return next(createError(401, 'No access token'));
-
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-  } catch (e) {
-    if (e.name === 'TokenExpiredError') {
-      return next(createError(401, 'Access token expired'));
-    }
-    return next(createError(401, 'Invalid access token'));
+export const authorize = async (req, res, next) => {
+  const { authorization } = req.headers;
+  if (!authorization) {
+    next(createHttpError(401, "Authorization header is missing"));
+    return;
   }
 
-  const session = await Session.findOne({ userId: decoded.userId, accessToken: token });
-  if (!session) return next(createError(401, 'Invalid session'));
+  const bearer = authorization.split(" ")[0];
+  const token = authorization.split(" ")[1];
 
-  if (session.accessTokenValidUntil.getTime() < Date.now()) {
-    await Session.deleteOne({ _id: session._id });
-    return next(createError(401, 'Access token expired'));
+  if (bearer !== "Bearer" || !token) {
+    next(createHttpError(401, "Invalid token format"));
+    return;
   }
 
-  const user = await User.findById(decoded.userId).select('-password');
-  if (!user) return next(createError(401, 'User not found'));
+  const session = await SessionsCollection.findOne({
+    accessToken: token,
+  });
+  if (!session) {
+    next(createHttpError(401, "Invalid token"));
+    return;
+  }
+
+    
+  if (session.accessTokenValidUntil < new Date()) {
+    next(createHttpError(401, "Token expired"));
+    return;
+  }
+  const user = await UsersCollection.findById(session.userId);
+
+  if (!user) {
+    next(createHttpError(401, "User not found"));
+    return;
+  }
 
   req.user = user;
+
   next();
 };

@@ -1,98 +1,90 @@
-import createError from 'http-errors';
-import bcrypt from 'bcryptjs';
-import { User } from '../db/models/User.js';
-import { Session } from '../db/models/Session.js';
-import { signAccessToken, signRefreshToken, verifyRefresh } from '../utils/tokens.js';
+import createHttpError from "http-errors";
+import UsersCollection from "../db/models/user.js";
+import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
+import { SessionsCollection } from "../db/models/Sessions.js";
+import { FIFTEEN_MINUITES, ONE_DAY } from "../constant/constantContact.js";
 
-const ACCESS_MIN = Number(process.env.ACCESS_TOKEN_TTL_MIN || 15);
-const REFRESH_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30);
+export const registerUser = async (userData) => {
+  const { email, password } = userData;
+  const user = await UsersCollection.findOne({ email });
 
-export const registerUser = async ({ name, email, password }) => {
-  const existing = await User.findOne({ email });
-  if (existing) throw createError(409, 'Email in use');
-
-  const hash = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, password: hash });
-
-  const safe = user.toObject();
-  delete safe.password;
-  return safe;
-};
-
-export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email });
-  if (!user) throw createError(401, 'Email or password is wrong');
-
-  const ok = await bcrypt.compare(password, user.password);
-  if (!ok) throw createError(401, 'Email or password is wrong');
-
-  // Eski oturum(lar)ı sil
-  await Session.deleteMany({ userId: user._id });
-
-  // Yeni oturum & tokenlar
-  const payload = { userId: user._id.toString() };
-  const a = signAccessToken(payload, ACCESS_MIN);
-  const r = signRefreshToken(payload, REFRESH_DAYS);
-
-  const session = await Session.create({
-    userId: user._id,
-    accessToken: a.token,
-    refreshToken: r.token,
-    accessTokenValidUntil: a.validUntil,
-    refreshTokenValidUntil: r.validUntil,
-  });
-
-  return {
-    accessToken: a.token,
-    refreshToken: r.token,
-    sessionId: session._id.toString(),
-    accessTokenValidUntil: a.validUntil,
-    refreshTokenValidUntil: r.validUntil,
-    userId: user._id.toString(),
-  };
-};
-
-export const refreshSession = async ({ refreshToken }) => {
-  if (!refreshToken) throw createError(401, 'No refresh token');
-
-  // JWT geçerli mi?
-  const decoded = verifyRefresh(refreshToken);
-  // DB’deki oturumu bul
-  const session = await Session.findOne({ refreshToken });
-  if (!session) throw createError(401, 'Invalid session');
-
-  // Süresi dolmuş mu?
-  if (session.refreshTokenValidUntil.getTime() < Date.now()) {
-    await Session.deleteOne({ _id: session._id });
-    throw createError(401, 'Refresh token expired');
+  if (user) {
+    throw createHttpError(409, "Email in use");
   }
 
-  // Eski oturumu sil ve yenisini oluştur (rotate)
-  await Session.deleteOne({ _id: session._id });
+  const hasedPassword = await bcrypt.hash(password, 10);
 
-  const payload = { userId: decoded.userId };
-  const a = signAccessToken(payload, ACCESS_MIN);
-  const r = signRefreshToken(payload, REFRESH_DAYS);
-
-  const newSession = await Session.create({
-    userId: decoded.userId,
-    accessToken: a.token,
-    refreshToken: r.token,
-    accessTokenValidUntil: a.validUntil,
-    refreshTokenValidUntil: r.validUntil,
+  return await UsersCollection.create({
+    ...userData,
+    password: hasedPassword,
   });
-
-  return {
-    accessToken: a.token,
-    refreshToken: r.token,
-    sessionId: newSession._id.toString(),
-    accessTokenValidUntil: a.validUntil,
-    refreshTokenValidUntil: r.validUntil,
-    userId: decoded.userId,
-  };
 };
 
-export const logoutSession = async ({ refreshToken }) => {
-  if (!refreshToken) return; // idempotent
-  await Session.deleteOne({ refreshToken });
+export const loginUser = async (userData) => {
+  const { email, password } = userData;
+  const user = await UsersCollection.findOne({ email });
+
+  if (!user) {
+    throw createHttpError(404, "User not found");
+  }
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    throw createHttpError(401, "Invalid password");
+  }
+  await SessionsCollection.deleteMany({ userId: user._id });
+
+  const accessToken = randomBytes(30).toString("base64");
+  const refreshToken = randomBytes(30).toString("base64");
+  const accessTokenValidUntil = new Date(Date.now() + FIFTEEN_MINUITES); // 15 minutes
+  const refreshTokenValidUntil = new Date(Date.now() + ONE_DAY); // 7 days
+
+  const session = await SessionsCollection.create({
+    userId: user._id,
+    accessToken,
+    refreshToken,
+    accessTokenValidUntil,
+    refreshTokenValidUntil,
+  });
+
+  return session;
+};
+
+export const refreshUser = async ({ refreshToken, sessionId }) => {
+  const session = await SessionsCollection.findOne({
+    _id: sessionId,
+    refreshToken,
+  });
+
+  if (!session) {
+    throw createHttpError(404, "Session not found");
+  }
+
+  if (session.refreshTokenValidUntil < new Date()) {
+    throw createHttpError(401, "Refresh token expired");
+  }
+
+  // Eski oturumu sil
+  await SessionsCollection.findByIdAndDelete(sessionId);
+
+  // Yeni tokenlar oluştur
+  const accessTokenNew = randomBytes(30).toString("base64");
+  const refreshTokenNew = randomBytes(30).toString("base64");
+  const accessTokenValidUntilNew = new Date(Date.now() + FIFTEEN_MINUITES); // 15 minutes
+  const refreshTokenValidUntilNew = new Date(Date.now() + ONE_DAY); // 7 days
+
+  // Yeni oturumu oluştur
+  const sessionNew = await SessionsCollection.create({
+    userId: session.userId,
+    accessToken: accessTokenNew,
+    refreshToken: refreshTokenNew,
+    accessTokenValidUntil: accessTokenValidUntilNew,
+    refreshTokenValidUntil: refreshTokenValidUntilNew,
+  });
+
+  return sessionNew;
+};
+
+export const logoutUser = async (sessionId) => {
+  await SessionsCollection.findByIdAndDelete(sessionId);
 };

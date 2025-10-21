@@ -1,26 +1,49 @@
-import express from 'express';
-import cors from 'cors';
-import pino from 'pino-http';
-import cookieParser from 'cookie-parser'; // ⬅️ ekle
-import contactsRouter from './routers/contacts.js';
-import { notFoundHandler } from './middlewares/notFoundHandler.js';
-import { errorHandler } from './middlewares/errorHandler.js';
-import authRouter from './routers/auth.js';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import pino from "pino-http";
+import contactRouter from "./routers/contacts.js";
+import authRouter from "./routers/auth.js"; // Import authRouter
+import errorHandler from "./middlewares/errorHandler.js"; 
+import cookieParser from "cookie-parser";
+import notFoundHandler from "./middlewares/notFoundHandler.js";
 
-export const setupServer = () => {
-  const app = express();
+dotenv.config(); 
 
-  app.use(cors());
-  app.use(pino());
-  app.use(express.json()); // POST/PATCH body için
-  app.use(cookieParser()); // ⬅️ cookie’leri okuyabilmek için ekle
+const startServer = () => {
 
-  app.use('/auth', authRouter); 
-  app.use('/contacts', contactsRouter);
+    const app = express();
 
-  app.use(notFoundHandler);
-  app.use(errorHandler);
+    const PORT = process.env.PORT || 3000;
+    // Middleware
+    app.use(cookieParser());
+    app.use(express.json());
+    app.use(cors());
 
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+    // Pino logger middleware
+    app.use(
+        pino({
+            transport: {
+                target: "pino-pretty",
+            }
+        })
+    );
+
+    app.get("/", (req, res) => {
+        req.log.info("Ana sayfa ziyaret edildi"); // log örneği
+        res.send("Merhaba Express!");
+    });
+    app.use("/contacts", contactRouter);
+    app.use("/auth", authRouter);
+
+    // 404 error handling
+    app.use(notFoundHandler);
+    // Error handling middleware
+    app.use(errorHandler);
+
+    app.listen(PORT, () => {
+    console.log("localhost:Server is running on ", "http://localhost:3000");
+    });
 };
+
+export { startServer };

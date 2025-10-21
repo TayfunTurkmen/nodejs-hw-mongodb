@@ -1,44 +1,32 @@
-import { ContactTypes } from '../constants/index.js';
-const parseIsFavourite = (status) => {
-  const isString = typeof status === 'string';
-  if (!isString) return;
-  const lowered = status.toLowerCase();
-  if (['true', '1'].includes(lowered)) {
-    return true;
-  }
-  if (['false', '0'].includes(lowered)) {
-    return false;
-  }
-  return undefined;
-};
-
-const parseContactType = (type) => {
-  const isString = typeof type === 'string';
-  if (!isString) return;
-
-  const isKnownType = Object.values(ContactTypes).includes(type);
-  if (!isKnownType) {
-    return null;
-  }
-  return type;
-};
-
 export const parseFilterParams = (query) => {
-  const result = {};
-  const { isFavourite, type } = query;
-  const parsedIsFavorite = parseIsFavourite(isFavourite);
-  const parsedType = parseContactType(type);
+  const { type, isFavourite } = query;
 
-  if (parsedIsFavorite !== undefined) {
-    result.isFavourite = parsedIsFavorite;
-  }
-  if (parsedType !== undefined) {
-    result.type = parsedType;
+  const contactTypeValue = parseContactTypeValue(type);
+
+  // Fixed - properly handle isFavourite boolean conversion
+  let isFavouriteValue = undefined;
+  if (isFavourite !== undefined) {
+    isFavouriteValue = isFavourite === "true";
   }
 
-  // const result = {
-  //   isFavourite: parsedIsFavorite,
-  //   type: parsedType,
-  // };
-  return result;
+  const filter = {};
+
+  if (contactTypeValue) {
+    filter.contactType = contactTypeValue;
+  }
+
+  if (isFavouriteValue !== undefined) {
+    filter.isFavourite = isFavouriteValue;
+  }
+
+  return filter;
+};
+const parseContactTypeValue = (type) => {
+  const contactTypeValues = ["work", "home", "personal"];
+
+  if (type && contactTypeValues.includes(type)) {
+    return type;
+  }
+
+  return null;
 };

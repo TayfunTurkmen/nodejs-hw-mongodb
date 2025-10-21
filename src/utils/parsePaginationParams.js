@@ -1,13 +1,13 @@
-import { parseNumber } from './parseNumber.js';
+const parseNumber = (value, defaultValue) => {
+    const parsedValue = Number(value);
+    return isNaN(parsedValue) ? defaultValue : parsedValue;
+};
 
 export const parsePaginationParams = (query) => {
-  const { page, perPage } = query;
-
-  const parsedPage = parseNumber(page, 1);
-  const parsedPerPage = parseNumber(perPage, 10);
-
-  return {
-    page: parsedPage,
-    perPage: parsedPerPage,
-  };
+    const page = parseNumber(query.page);
+    const limit = parseNumber(query.limit);
+    return {
+        page,
+        limit,
+    }
 };
