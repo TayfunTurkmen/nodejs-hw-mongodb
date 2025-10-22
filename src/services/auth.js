@@ -1,90 +1,91 @@
-import createHttpError from "http-errors";
-import UsersCollection from "../db/models/user.js";
-import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
-import { SessionsCollection } from "../db/models/Sessions.js";
-import { FIFTEEN_MINUITES, ONE_DAY } from "../constant/constantContact.js";
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const createError = require('http-errors');
+const { User } = require('../db/models/user');
+const { Session } = require('../db/models/session');
 
-export const registerUser = async (userData) => {
-  const { email, password } = userData;
-  const user = await UsersCollection.findOne({ email });
+const ACCESS_SECRET = process.env.ACCESS_SECRET || 'accesssecret';
+const REFRESH_SECRET = process.env.REFRESH_SECRET || 'refreshsecret';
 
-  if (user) {
-    throw createHttpError(409, "Email in use");
-  }
+// 🔹 KULLANICI KAYIT
+async function registerUser({ name, email, password }) {
+  // Aynı email var mı?
+  const existing = await User.findOne({ email });
+  if (existing) throw createError(409, 'Email in use');
 
-  const hasedPassword = await bcrypt.hash(password, 10);
+  // Şifre hashlenir
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  return await UsersCollection.create({
-    ...userData,
-    password: hasedPassword,
-  });
-};
+  // Yeni kullanıcı oluşturulur
+  const user = await User.create({ name, email, password: hashedPassword });
+  const userObj = user.toObject();
+  delete userObj.password; // şifre dışarıya gönderilmez
+  return userObj;
+}
 
-export const loginUser = async (userData) => {
-  const { email, password } = userData;
-  const user = await UsersCollection.findOne({ email });
+// 🔹 GİRİŞ (Login)
+async function loginUser({ email, password }) {
+  const user = await User.findOne({ email });
+  if (!user) throw createError(401, 'Email or password invalid');
 
-  if (!user) {
-    throw createHttpError(404, "User not found");
-  }
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    throw createHttpError(401, "Invalid password");
-  }
-  await SessionsCollection.deleteMany({ userId: user._id });
+  // Şifre doğru mu?
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) throw createError(401, 'Email or password invalid');
 
-  const accessToken = randomBytes(30).toString("base64");
-  const refreshToken = randomBytes(30).toString("base64");
-  const accessTokenValidUntil = new Date(Date.now() + FIFTEEN_MINUITES); // 15 minutes
-  const refreshTokenValidUntil = new Date(Date.now() + ONE_DAY); // 7 days
+  // Eski oturumları sil
+  await Session.deleteMany({ userId: user._id });
 
-  const session = await SessionsCollection.create({
+  // Yeni token’lar oluştur
+  const accessToken = jwt.sign({ userId: user._id }, ACCESS_SECRET, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ userId: user._id }, REFRESH_SECRET, { expiresIn: '30d' });
+
+  // Oturum kaydı oluştur
+  await Session.create({
     userId: user._id,
     accessToken,
     refreshToken,
-    accessTokenValidUntil,
-    refreshTokenValidUntil,
+    accessTokenValidUntil: new Date(Date.now() + 15 * 60 * 1000),
+    refreshTokenValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
-  return session;
-};
+  return { accessToken, refreshToken };
+}
 
-export const refreshUser = async ({ refreshToken, sessionId }) => {
-  const session = await SessionsCollection.findOne({
-    _id: sessionId,
-    refreshToken,
-  });
+// 🔹 OTURUM YENİLEME
+async function refreshSession(refreshToken) {
+  if (!refreshToken) throw createError(401, 'Refresh token missing');
 
-  if (!session) {
-    throw createHttpError(404, "Session not found");
-  }
+  const session = await Session.findOne({ refreshToken });
+  if (!session) throw createError(401, 'Session not found');
 
-  if (session.refreshTokenValidUntil < new Date()) {
-    throw createHttpError(401, "Refresh token expired");
-  }
+  // Eski session silinir
+  await Session.deleteOne({ _id: session._id });
 
-  // Eski oturumu sil
-  await SessionsCollection.findByIdAndDelete(sessionId);
+  // Yeni token’lar oluşturulur
+  const accessToken = jwt.sign({ userId: session.userId }, ACCESS_SECRET, { expiresIn: '15m' });
+  const newRefreshToken = jwt.sign({ userId: session.userId }, REFRESH_SECRET, { expiresIn: '30d' });
 
-  // Yeni tokenlar oluştur
-  const accessTokenNew = randomBytes(30).toString("base64");
-  const refreshTokenNew = randomBytes(30).toString("base64");
-  const accessTokenValidUntilNew = new Date(Date.now() + FIFTEEN_MINUITES); // 15 minutes
-  const refreshTokenValidUntilNew = new Date(Date.now() + ONE_DAY); // 7 days
-
-  // Yeni oturumu oluştur
-  const sessionNew = await SessionsCollection.create({
+  // Yeni session kaydedilir
+  await Session.create({
     userId: session.userId,
-    accessToken: accessTokenNew,
-    refreshToken: refreshTokenNew,
-    accessTokenValidUntil: accessTokenValidUntilNew,
-    refreshTokenValidUntil: refreshTokenValidUntilNew,
+    accessToken,
+    refreshToken: newRefreshToken,
+    accessTokenValidUntil: new Date(Date.now() + 15 * 60 * 1000),
+    refreshTokenValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
-  return sessionNew;
-};
+  return { accessToken, refreshToken: newRefreshToken };
+}
 
-export const logoutUser = async (sessionId) => {
-  await SessionsCollection.findByIdAndDelete(sessionId);
+// 🔹 ÇIKIŞ (Logout)
+async function logoutSession(refreshToken) {
+  if (!refreshToken) return;
+  await Session.deleteOne({ refreshToken });
+}
+
+module.exports = {
+  registerUser,
+  loginUser,
+  refreshSession,
+  logoutSession,
 };

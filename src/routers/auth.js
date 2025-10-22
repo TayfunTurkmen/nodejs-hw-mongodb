@@ -1,32 +1,27 @@
-import { Router } from "express";
-import { validateBody } from "../middlewares/validateBody.js";
-import { createUserSchema, loginUserSchema } from "../validators/user.js";
-import { ctrlWrapper } from "../utils/ctrlWrapper.js";
-import {
-  loginUserController,
-  logoutUserController,
-  refreshUserController,
-  registerUserController,
-} from "../controllers/auth.js";
+const express = require('express');
+const {
+  registerController,
+  loginController,
+  refreshController,
+  logoutController,
+  sendResetEmailController, // 👈 eklendi
+} = require('../controllers/auth');
 
-const authRouter = Router();
+const router = express.Router();
 
-// Starts with '/auth' endpoint
+// Kullanıcı kayıt
+router.post('/register', registerController);
 
-authRouter.post(
-  "/register",
-  validateBody(createUserSchema),
-  ctrlWrapper(registerUserController)
-);
+// Giriş yapma
+router.post('/login', loginController);
 
-authRouter.post(
-  "/login",
-  validateBody(loginUserSchema),
-  ctrlWrapper(loginUserController)
-);
+// Oturum yenileme
+router.post('/refresh', refreshController);
 
-authRouter.post("/refresh", ctrlWrapper(refreshUserController));
+// Çıkış yapma
+router.post('/logout', logoutController);
 
-authRouter.post("/logout", ctrlWrapper(logoutUserController));
+// ✅ Şifre sıfırlama e-postası gönderimi
+router.post('/send-reset-email', sendResetEmailController);
 
-export default authRouter;
+module.exports = router; // 👈 doğru export

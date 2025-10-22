@@ -1,19 +1,22 @@
-import Joi from 'joi';
+const Joi = require('joi');
 
-const string20 = Joi.string().min(3).max(20);
-
-export const createContactSchema = Joi.object({
-  name: string20.required(),
-  phoneNumber: string20.required(),
-  email: Joi.string().email().min(3).max(50).optional(),
-  isFavourite: Joi.boolean().optional(),
-  contactType: Joi.string().valid('work', 'home', 'personal').required(),
+const createContactSchema = Joi.object({
+  name: Joi.string().min(3).max(20).required(),
+  phoneNumber: Joi.string().required(),
+  email: Joi.string().email().required(),
+  isFavourite: Joi.boolean(),
+  contactType: Joi.string().valid('home', 'work', 'personal')
 });
 
-export const updateContactSchema = Joi.object({
-  name: string20.optional(),
-  phoneNumber: string20.optional(),
-  email: Joi.string().email().min(3).max(50).optional(),
-  isFavourite: Joi.boolean().optional(),
-  contactType: Joi.string().valid('work', 'home', 'personal').optional(),
-}).min(1); 
+const updateContactSchema = Joi.object({
+  name: Joi.string().min(3).max(20),
+  phoneNumber: Joi.string(),
+  email: Joi.string().email(),
+  isFavourite: Joi.boolean(),
+  contactType: Joi.string().valid('home', 'work', 'personal')
+}).min(1);
+
+module.exports = {
+  createContactSchema,
+  updateContactSchema,
+};

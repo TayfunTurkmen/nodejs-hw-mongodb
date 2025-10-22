@@ -1,17 +1,11 @@
-import createHttpError from "http-errors"
+const createError = require('http-errors');
 
+const validateBody = schema => (req, _res, next) => {
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return next(createError(400, error.message));
+  }
+  next();
+};
 
-export const validateBody = (schema) => async (req, res, next) => {
-    try{
-        
-        await schema.validateAsync(req.body, {
-            abortEarly: false,
-        });
-        next();
-
-    }catch(err){
-        throw createHttpError(400, "Invalid request body", {
-            cause: err,
-        });
-    }
-}
+module.exports = { validateBody };

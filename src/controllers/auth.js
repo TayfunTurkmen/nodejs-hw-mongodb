@@ -1,78 +1,140 @@
-import {
-  loginUser,
-  logoutUser,
-  refreshUser,
+const createError = require('http-errors');
+const {
   registerUser,
-} from "../services/auth.js";
+  loginUser,
+  refreshSession,
+  logoutSession,
+} = require('../services/auth');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const { User } = require('../db/models/user');
 
-export const registerUserController = async (req, res) => {
-  const userData = req.body;
+const cookieName = process.env.COOKIE_NAME || 'refreshToken';
 
-  const newUser = await registerUser(userData);
-
-  res.status(201).send({
-    message: "Successfully registered a user!",
-    status: 201,
-    user: newUser,
-  });
+const cookieOpts = {
+  httpOnly: true,
+  sameSite: 'strict',
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
 };
 
-export const loginUserController = async (req, res) => {
-  const session = await loginUser(req.body);
+// 🔹 Kullanıcı Kaydı
+async function registerController(req, res, next) {
+  try {
+    const user = await registerUser(req.body);
+    res.status(201).json({
+      status: 201,
+      message: 'Successfully registered a user!',
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
-  res.cookie("refreshToken", session.refreshToken, {
-    httpOnly: true,
-    expires: session.refreshTokenValidUntil,
-  });
+// 🔹 Giriş Yapma
+async function loginController(req, res, next) {
+  try {
+    const result = await loginUser(req.body);
 
-  res.cookie("sessionId", session._id, {
-    httpOnly: true,
-    expires: session.refreshTokenValidUntil,
-  });
-  res.status(200).send({
-    message: "Successfully logged in an user!",
-    status: 200,
-    data: {
-      accessToken: session.accessToken,
-    },
-  });
-};
+    // Refresh token cookie'ye kaydedilir
+    res.cookie(cookieName, result.refreshToken, {
+      ...cookieOpts,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 gün
+    });
 
-export const refreshUserController = async (req, res) => {
-  const { refreshToken, sessionId } = req.cookies;
+    // Access token response body'de döner
+    res.status(200).json({
+      status: 200,
+      message: 'Successfully logged in an user!',
+      data: { accessToken: result.accessToken },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
-  const session = await refreshUser({ refreshToken, sessionId });
+// 🔹 Refresh (Oturum Yenileme)
+async function refreshController(req, res, next) {
+  try {
+    const result = await refreshSession(req.cookies[cookieName]);
 
-  res.cookie("refreshToken", session.refreshToken, {
-    httpOnly: true,
-    expires: session.refreshTokenValidUntil,
-  });
-  res.cookie("sessionId", session._id, {
-    httpOnly: true,
-    expires: session.refreshTokenValidUntil,
-  });
+    res.cookie(cookieName, result.refreshToken, {
+      ...cookieOpts,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
 
-  res.status(200).send({
-    message: "Successfully refreshed a session!",
-    status: 200,
-    data: {
-      accessToken: session.accessToken,
-    },
-  });
-};
+    res.status(200).json({
+      status: 200,
+      message: 'Successfully refreshed a session!',
+      data: { accessToken: result.accessToken },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
-export const logoutUserController = async (req, res) => {
-  const { sessionId } = req.cookies;
-  // if (!sessionId) {
-  //   throw createHttpError(400, 'Session ID is missing');
-  // }
-  await logoutUser(sessionId);
+// 🔹 Logout (Çıkış)
+async function logoutController(req, res, next) {
+  try {
+    await logoutSession(req.cookies[cookieName]);
+    res.clearCookie(cookieName, cookieOpts);
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+}
 
-  res.clearCookie("refreshToken");
-  res.clearCookie("sessionId");
+// 🔹 Şifre Sıfırlama E-Postası Gönderimi
+async function sendResetEmailController(req, res, next) {
+  try {
+    const { email } = req.body;
+    if (!email) throw createError(400, 'Email is required');
 
-  res.status(204).send({
-    message: "User logged out successfully",
-    status: 204,
-  });
+    const user = await User.findOne({ email });
+    if (!user) throw createError(404, 'User not found!');
+
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '5m' });
+    const resetLink = `${process.env.APP_DOMAIN}/reset-password?token=${token}`;
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <p>Merhaba ${user.name || 'kullanıcı'},</p>
+        <p>Şifreni sıfırlamak için aşağıdaki bağlantıya tıkla:</p>
+        <a href="${resetLink}">${resetLink}</a>
+        <p>Bu bağlantı 5 dakika içinde geçersiz olacaktır.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Reset password email has been successfully sent.',
+      data: {},
+    });
+  } catch (error) {
+    console.error('Email gönderim hatası:', error);
+    next(createError(500, 'Failed to send the email, please try again later.'));
+  }
+}
+
+module.exports = {
+  registerController,
+  loginController,
+  refreshController,
+  logoutController,
+  sendResetEmailController, 
 };

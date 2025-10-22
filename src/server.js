@@ -1,49 +1,31 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import pino from "pino-http";
-import contactRouter from "./routers/contacts.js";
-import authRouter from "./routers/auth.js"; // Import authRouter
-import errorHandler from "./middlewares/errorHandler.js"; 
-import cookieParser from "cookie-parser";
-import notFoundHandler from "./middlewares/notFoundHandler.js";
+const express = require('express');
+const cors = require('cors');
+const pinoHttp = require('pino-http');
 
-dotenv.config(); 
+const contactsRouter = require('./routers/contacts');
+const authRouter = require('./routers/auth');
+const { errorHandler } = require('./middlewares/errorHandler');
+const { notFoundHandler } = require('./middlewares/notFoundHandler');
 
-const startServer = () => {
+function setupServer() {
+  const app = express(); 
 
-    const app = express();
+  app.use(cors());
+  app.use(pinoHttp());
+  app.use(express.json());
 
-    const PORT = process.env.PORT || 3000;
-    // Middleware
-    app.use(cookieParser());
-    app.use(express.json());
-    app.use(cors());
+  
+  app.use('/auth', authRouter);
+  app.use('/contacts', contactsRouter);
 
-    // Pino logger middleware
-    app.use(
-        pino({
-            transport: {
-                target: "pino-pretty",
-            }
-        })
-    );
+  // Basit health/info endpoint
+  app.get('/', (_req, res) => res.json({ ok: true, routes: ['/auth', '/contacts'] }));
 
-    app.get("/", (req, res) => {
-        req.log.info("Ana sayfa ziyaret edildi"); // log örneği
-        res.send("Merhaba Express!");
-    });
-    app.use("/contacts", contactRouter);
-    app.use("/auth", authRouter);
+  // 404 ve hata yakalayıcılar
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
-    // 404 error handling
-    app.use(notFoundHandler);
-    // Error handling middleware
-    app.use(errorHandler);
+  return app;
+}
 
-    app.listen(PORT, () => {
-    console.log("localhost:Server is running on ", "http://localhost:3000");
-    });
-};
-
-export { startServer };
+module.exports = { setupServer };

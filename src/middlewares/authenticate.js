@@ -1,43 +1,29 @@
-import createHttpError from "http-errors";
-import { SessionsCollection } from "../db/model/Session.js";
-import UsersCollection from "../db/model/user.js";
+const jwt = require('jsonwebtoken');
+const createError = require('http-errors');
+const { Session } = require('../db/models/session');
 
-export const authorize = async (req, res, next) => {
-  const { authorization } = req.headers;
-  if (!authorization) {
-    next(createHttpError(401, "Authorization header is missing"));
-    return;
+const ACCESS_SECRET = process.env.ACCESS_SECRET || 'accesssecret';
+
+const authenticate = async (req, _res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const [type, token] = authHeader.split(' ');
+
+  if (type !== 'Bearer' || !token) {
+    return next(createError(401, 'Not authorized'));
   }
 
-  const bearer = authorization.split(" ")[0];
-  const token = authorization.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, ACCESS_SECRET);
+    const session = await Session.findOne({ accessToken: token });
 
-  if (bearer !== "Bearer" || !token) {
-    next(createHttpError(401, "Invalid token format"));
-    return;
+    if (!session) throw createError(401, 'Session not found');
+    if (new Date() > session.accessTokenValidUntil) throw createError(401, 'Access token expired');
+
+    req.user = { _id: payload.userId };
+    next();
+  } catch (error) {
+    next(createError(401, error.message));
   }
-
-  const session = await SessionsCollection.findOne({
-    accessToken: token,
-  });
-  if (!session) {
-    next(createHttpError(401, "Invalid token"));
-    return;
-  }
-
-    
-  if (session.accessTokenValidUntil < new Date()) {
-    next(createHttpError(401, "Token expired"));
-    return;
-  }
-  const user = await UsersCollection.findById(session.userId);
-
-  if (!user) {
-    next(createHttpError(401, "User not found"));
-    return;
-  }
-
-  req.user = user;
-
-  next();
 };
+
+module.exports = { authenticate };

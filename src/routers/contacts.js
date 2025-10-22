@@ -1,47 +1,25 @@
-
-import { Router } from "express";
-import {ctrlWrapper} from "../utils/ctrlWrapper.js";
-import { validateBody } from "../middlewares/validateBody.js";
-import { validateId } from "../middlewares/validateId.js";
-
-import {
+const express = require('express');
+const {
   getAllContactsController,
   getContactByIdController,
   createContactController,
   patchContactController,
   deleteContactController,
-  putContactController,
-  } from "../controllers/contact.js";
-import {
-  createContactSchema,
-  updateContactSchema
-  } from "../validators/contact.js";
+} = require('../controllers/contacts');
+const { validateBody } = require('../middlewares/validateBody');
+const { isValidId } = require('../middlewares/isValidId');
+const { createContactSchema, updateContactSchema } = require('../validation/contactSchemas');
+const { authenticate } = require('../middlewares/authenticate'); 
+
+const router = express.Router();
 
 
-const contactRouter = Router();
+router.use(authenticate);
 
-contactRouter.get("/", ctrlWrapper(getAllContactsController));
+router.get('/', getAllContactsController);
+router.get('/:contactId', isValidId, getContactByIdController);
+router.post('/', validateBody(createContactSchema), createContactController);
+router.patch('/:contactId', isValidId, validateBody(updateContactSchema), patchContactController);
+router.delete('/:contactId', isValidId, deleteContactController);
 
-contactRouter.get("/:contactId", 
-  validateId,
-  ctrlWrapper(getContactByIdController));
-
-contactRouter.post("/", 
-  validateBody(createContactSchema),
-  ctrlWrapper(createContactController));
-
-contactRouter.put("/:contactId",
-  validateId,
-  validateBody(updateContactSchema),
-  ctrlWrapper(putContactController));
-
-contactRouter.patch("/:contactId", 
-  validateId,
-  validateBody(updateContactSchema),
-  ctrlWrapper(patchContactController));
-
-contactRouter.delete("/:contactId",
-  validateId,
-  ctrlWrapper(deleteContactController));
-
-export default contactRouter;
+module.exports = router;

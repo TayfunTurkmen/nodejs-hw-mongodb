@@ -1,17 +1,10 @@
-
-
-// eslint-disable-next-line no-unused-vars
-const errorHandler = (err, req, res, next) => {
-  console.error(err.stack); 
-
+function errorHandler(err, _req, res, _next) {
   const status = err.status || 500;
-  const message = err.message || "Internal Server Error";
+  const message = status === 500 ? 'Something went wrong' : err.message;
+  const data = err.message || 'Unexpected error';
 
-  res.status(status).json({
-    status: "error",
-    code: status,
-    message,
-  });
-};
+  if (status === 204) return res.status(204).end();
+  return res.status(status).json({ status, message, data });
+}
 
-export default errorHandler;
+module.exports = { errorHandler };

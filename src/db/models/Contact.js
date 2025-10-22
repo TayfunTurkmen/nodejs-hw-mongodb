@@ -1,31 +1,21 @@
-import { Schema,model } from "mongoose";
+const { Schema, model } = require('mongoose');
 
-const contactSchema = new Schema({
-    name:{
-        type:String,
-        required:true
+const contactSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    phoneNumber: { type: String, required: true, trim: true },
+    email: { type: String, default: null, trim: true },
+    isFavourite: { type: Boolean, default: false },
+    contactType: {
+      type: String,
+      enum: ['work', 'home', 'personal'],
+      required: true,
+      default: 'personal',
     },
-    phoneNumber:{
-        type:String,
-        required:true
-    },
-    email:{
-        type:String,
-    },
-    isFavourite:{
-        type:Boolean,
-        default:false
-    },
-    contactType:{
-        type:String,
-        enum:['other','work','personal'],
-        default:'personel',
-        required:true
-    }
-},{
-    timestamps:true,
-    collection:'contacts'
-});
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true, versionKey: false },
+);
 
-const Contacts = model('Contact',contactSchema);
-export default Contacts;
+const Contact = model('Contact', contactSchema); 
+module.exports = { Contact };
