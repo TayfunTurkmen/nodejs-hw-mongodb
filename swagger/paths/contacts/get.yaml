@@ -1,0 +1,21 @@
+tags:
+  - Contacts
+summary: Tüm kişileri listele
+operationId: getContacts
+description: Kullanıcının sahip olduğu tüm kişileri listeler. Query parametreleriyle filtreleme yapılabilir.
+security:
+  - bearerAuth: []
+parameters:
+  - name: page
+    in: query
+    schema:
+      type: integer
+    description: Sayfa numarası
+  - name: limit
+    in: query
+    schema:
+      type: integer
+    description: Sayfa başına kişi sayısı
+responses:
+  "200":
+    $ref: "../../components/responses/200.yaml"

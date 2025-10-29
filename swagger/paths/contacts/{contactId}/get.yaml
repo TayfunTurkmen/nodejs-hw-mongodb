@@ -1,0 +1,18 @@
+tags:
+  - Contacts
+summary: Belirli kişiyi getir
+operationId: getContactById
+description: Belirtilen ID’ye sahip kişiyi döndürür.
+security:
+  - bearerAuth: []
+parameters:
+  - name: contactId
+    in: path
+    required: true
+    schema:
+      type: string
+responses:
+  "200":
+    $ref: "../../../components/responses/200.yaml"
+  "404":
+    $ref: "../../../components/responses/404.yaml"

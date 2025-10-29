@@ -1,0 +1,21 @@
+tags:
+  - Auth
+summary: Kullanıcı girişi
+operationId: loginUser
+description: Kullanıcı kimlik doğrulaması yapar ve token döndürür.
+requestBody:
+  required: true
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          email:
+            type: string
+          password:
+            type: string
+responses:
+  "200":
+    $ref: "../../components/responses/200.yaml"
+  "401":
+    description: Yetkisiz erişim

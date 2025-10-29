@@ -1,106 +1,66 @@
-import Contact from '../db/models/contacts.js';
-import { isValidObjectId } from 'mongoose';
+import { Contact } from "../db/models/Contact.js";
+
+
 
 export const getAllContacts = async ({
   page = 1,
   perPage = 10,
-  sortBy = 'name',
-  sortOrder = 'asc',
+  sortBy = "name",
+  sortOrder = "asc",
   type,
-  isFavorite,
-}) => {
-  const skip = (page - 1) * perPage;
+  isFavourite,
+} = {}) => {
+  const pageNum = parseInt(page, 10);
+  const perPageNum = parseInt(perPage, 10);
 
   const filter = {};
   if (type) {
     filter.contactType = type;
   }
-  if (isFavorite !== undefined) {
-    filter.isFavorite = isFavorite === 'true';
+  if (isFavourite !== undefined) {
+    const fav = String(isFavourite).toLowerCase();
+    filter.isFavourite = fav === "true" || fav === "1";
   }
 
-  const totalItems = await Contact.countDocuments();
-  const sortOptions = { [sortBy]: sortOrder === 'desc' ? 1 : -1 };
+  const sort = {};
+  sort[sortBy] = sortOrder === "desc" ? -1 : 1;
 
-  const contacts = await Contact.find()
+  const totalItems = await ContactsCollection.countDocuments(filter);
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPageNum));
+  const skip = (pageNum - 1) * perPageNum;
+
+  const data = await ContactsCollection.find(filter)
+    .sort(sort)
     .skip(skip)
-    .limit(perPage)
-    .sort(sortOptions);
-
-  const totalPages = Math.ceil(totalItems / perPage);
+    .limit(perPageNum)
+    .lean();
 
   return {
-    data: contacts,
-    page,
-    perPage,
+    data,
+    page: pageNum,
+    perPage: perPageNum,
     totalItems,
     totalPages,
-    hasPreviousPage: page > 1,
-    hasNextPage: page < totalPages,
+    hasPreviousPage: pageNum > 1,
+    hasNextPage: pageNum < totalPages,
   };
 };
 
-// export const getAllContacts = async () => {
-//   const contacts = await Contact.find();
-//   console.log('Contacts found:', contacts);
-//   if (!contacts) {
-//     return null;
-//   }
-//   return contacts;
-// };
-
-export const getContactById = async (id) => {
-  if (!isValidObjectId(id)) return null;
-
-  const contact = await Contact.findById(id);
-  console.log('Contact found:', contact);
-  if (!contact) {
-    console.log(`Contact with ID ${id} not found`);
-    return null;
-  }
-  console.log('Contact retrived successfully:', contact);
-  return contact;
+export const getContactById = async (contactId) => {
+  return await ContactsCollection.findById(contactId);
 };
 
-export const createContact = async (contactData) => {
-  try {
-    const result = await Contact.create(contactData);
-    if (!result) {
-      console.log('Contact created successfully:', result);
-      return null;
-    }
-    return result;
-  } catch (error) {
-    console.error('Error creating contact:', error);
-    return null;
-  }
+export const createContact = async (payload) => {
+  return await ContactsCollection.create(payload);
 };
 
-export const updateContact = async (id, contactData) => {
-  if (!isValidObjectId(id)) return null;
-
-  const result = await Contact.findByIdAndUpdate(
-    {
-      _id: id,
-    },
-    contactData,
-    { runValidators: false }
-  );
-  if (!result) {
-    console.log(`Contact with ID ${id} not found for update`);
-    return null;
-  }
-  return result;
+export const updateContact = async (contactId, payload, options = {}) => {
+  return await ContactsCollection.findByIdAndUpdate(contactId, payload, {
+    new: true,
+    ...options,
+  });
 };
 
-export const deleteContact = async (id) => {
-  if (!isValidObjectId(id)) return null;
-
-  const result = await Contact.findByIdAndDelete(id);
-  if (!result) {
-    console.log(`Contact with ID ${id} not found for deletion`);
-    return null;
-  }
-  console.log('Contact deleted successfully:', result);
-  return result;
+export const deleteContact = async (contactId) => {
+  return await ContactsCollection.findByIdAndDelete(contactId);
 };

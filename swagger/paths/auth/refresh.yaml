@@ -1,0 +1,10 @@
+tags:
+  - Auth
+summary: Token yenile
+operationId: refreshSession
+description: Kullanıcı token’ını yeniler.
+security:
+  - bearerAuth: []
+responses:
+  "200":
+    $ref: "../../components/responses/200.yaml"

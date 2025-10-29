@@ -1,0 +1,18 @@
+tags:
+  - Contacts
+summary: Kişiyi sil
+operationId: deleteContact
+description: Belirtilen ID’ye sahip kişiyi siler.
+security:
+  - bearerAuth: []
+parameters:
+  - name: contactId
+    in: path
+    required: true
+    schema:
+      type: string
+responses:
+  "200":
+    $ref: "../../../components/responses/200.yaml"
+  "404":
+    $ref: "../../../components/responses/404.yaml"

@@ -1,0 +1,10 @@
+tags:
+  - Auth
+summary: Çıkış yap
+operationId: logoutUser
+description: Kullanıcı oturumunu sonlandırır.
+security:
+  - bearerAuth: []
+responses:
+  "204":
+    description: Başarılı çıkış
